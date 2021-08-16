@@ -42,5 +42,5 @@ for each author with the author being the original author while the committer st
 
 ## Disclaimer
 
-In order to prevent code lost, its best to first commit your changes and the run `git reset --soft HEAD^` so that you could return to your changes
+In order to prevent code loss, its best to first commit your changes and the run `git reset --soft HEAD^` so that you could return to your changes
 using `git reflog` or alternitively stash your changes and run `git stash apply` to keep your changes in the stash if something goes wrong.
