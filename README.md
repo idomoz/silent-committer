@@ -1,2 +1,2 @@
-# silent-commiter
+# silent-committer
 Commits changed as original authors
