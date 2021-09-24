@@ -34,7 +34,7 @@ Commits changes as original authors.
 """
 DIFF_FILE_PREFIX = 'diff --git a/'
 DIFF_HUNK_PREFIX = '@@ -'
-HUNK_INFO_REGEX = re.compile(r'(\d+),(\d+) \+(\d+),(\d+) @@') # Example: '@@ -43,3 +43,3 @@'
+HUNK_INFO_REGEX = re.compile(r'(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@') # Example: '@@ -43,3 +43,3 @@'
 AUTHOR_NAME_REGEX = re.compile(r'^author (.*)$', re.MULTILINE)
 AUTHOR_EMAIL_REGEX = re.compile(r'^author-mail \<(.*)\>$', re.MULTILINE)
 CURRENT_AUTHOR = {'author_name': $(git config --global --get user.name).strip(), 'author_email': $(git config --global --get user.email).strip()}
@@ -97,8 +97,7 @@ def parse_hunks():
 
         split_commands.append('n')
 
-
-        start_line, hunk_size = map(int, HUNK_INFO_REGEX.match(hunk_info).groups()[:2])
+        start_line, hunk_size = map(lambda x: int(x) if x is not None else 1, HUNK_INFO_REGEX.match(hunk_info).groups()[:2])
 
         # Filter out lines that were added   
         hunk_lines = (line for line in hunk_diff.splitlines() if not line.startswith('+'))
