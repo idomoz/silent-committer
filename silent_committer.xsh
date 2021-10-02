@@ -2,6 +2,7 @@ import re
 import os
 import sys
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 import tqdm
 
@@ -45,8 +46,10 @@ def get_line_author(file_path, line):
     """
     Finds the name and email of the line's author.
     """
-    blame_data = $(git blame @(file_path) -w -p -L @(line),@(line))
-    
+    blame_data = ''
+    while not blame_data or not blame_data.strip():
+        blame_data = $(git blame @(file_path) -w -p -L @(line),@(line))
+
     return dict(
         author_name=AUTHOR_NAME_REGEX.findall(blame_data)[0],
         author_email=AUTHOR_EMAIL_REGEX.findall(blame_data)[0]
@@ -120,6 +123,31 @@ def iterate_hunks(hunks_by_file):
         for hunk_index, hunk_data in enumerate(hunks):
             yield file_path, hunk_data, hunk_index
 
+def calculate_hunk_author(file_path, hunk_data, pbar):
+    # If hunk contains only added lines, than use current author.
+    if not hunk_data['modified_lines']:
+        hunk_data['author'] = CURRENT_AUTHOR
+        pbar.update(1)
+        return
+
+    modified_lines_authors = [get_line_author(file_path, modified_line) for modified_line in hunk_data['modified_lines']]
+    modified_lines_author_emails = {author['author_email'] for author in modified_lines_authors}
+
+    if len(modified_lines_author_emails) == 1:
+        # Ther is only one original author for the changed lines in the hunk
+        hunk_data['author'] = modified_lines_authors[0]
+    else:
+        # In case there are multiple original authors, we take the most contributing author for the hunk
+        all_hunk_authors = [get_line_author(file_path, line) for line in range(hunk_data['start_line'], hunk_data['start_line'] + hunk_data['hunk_size'])]
+
+        # Count how many lines each author wrote and filter out authors that didnt change any of the hunk changed lines
+        lines_per_author = Counter(author['author_email'] for author in all_hunk_authors if author['author_email'] in modified_lines_author_emails)
+        most_contributing_author_email = lines_per_author.most_common()[0][0]
+        author_data = next(author for author in all_hunk_authors if author['author_email'] == most_contributing_author_email)
+        hunk_data['author'] = author_data
+        hunk_data['was_ambiguous'] = True
+
+    pbar.update(1)
 
 def calculate_hunks_authors(hunks_by_file):
     """
@@ -127,29 +155,19 @@ def calculate_hunks_authors(hunks_by_file):
     """
     print('==== Calculating author per changed hunk ====')
     # Iterate hunks and determine hunk author with progress bar
-    for file_path, hunk_data, hunk_index in tqdm.tqdm(list(iterate_hunks(hunks_by_file))):
 
-        # If hunk contains only added lines, than use current author.
-        if not hunk_data['modified_lines']:
-            hunk_data['author'] = CURRENT_AUTHOR
-            continue
+    executor = ThreadPoolExecutor(max_workers=16)
+    hunks_list = list(iterate_hunks(hunks_by_file))
+    tasks = []
 
-        modified_lines_authors = [get_line_author(file_path, modified_line) for modified_line in hunk_data['modified_lines']]
-        modified_lines_author_emails = {author['author_email'] for author in modified_lines_authors}
-
-        if len(modified_lines_author_emails) == 1:
-            # Ther is only one original author for the changed lines in the hunk
-            hunk_data['author'] = modified_lines_authors[0]
-        else:
-            # In case there are multiple original authors, we take the most contributing author for the hunk
-            all_hunk_authors = [get_line_author(file_path, line) for line in range(hunk_data['start_line'], hunk_data['start_line'] + hunk_data['hunk_size'])]
-
-            # Count how many lines each author wrote and filter out authors that didnt change any of the hunk changed lines
-            lines_per_author = Counter(author['author_email'] for author in all_hunk_authors if author['author_email'] in modified_lines_author_emails)
-            most_contributing_author_email = lines_per_author.most_common()[0][0]
-            author_data = next(author for author in all_hunk_authors if author['author_email'] == most_contributing_author_email)
-            hunk_data['author'] = author_data
-            hunk_data['was_ambiguous'] = True
+    with tqdm.tqdm(total=len(hunks_list)) as pbar:
+        for file_path, hunk_data, hunk_index in hunks_list:
+            tasks.append(executor.submit(calculate_hunk_author, file_path, hunk_data, pbar))
+        
+        for task in tasks:
+            task.result()
+        
+        pbar.close()
 
 def remove_hunks(hunks_by_file, hunks_to_remove):
     """
@@ -230,6 +248,7 @@ def main():
 
     try:
         git config --global color.ui false
+        current_commit =  $(git rev-parse HEAD).replace('\n', '')
         print('==== Parsing hunks from git diff ====')
         hunks_by_file, _ = parse_hunks()
         
@@ -244,7 +263,9 @@ def main():
 
         commit_hunks_per_author(hunks_by_file)
         print(f'==== Successfully committed all changes as original authors! ====')
-            
+    except:
+        git reset --soft @(current_commit)
+        git reset > /dev/null
     finally:
         git config --global color.ui true
         rm /tmp/silent_committer_diff.txt
