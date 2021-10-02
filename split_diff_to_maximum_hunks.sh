@@ -2,10 +2,9 @@
 
 spawn git add -p
 
-while true { 
-    expect {
-        -re {Stage this hunk \[.*s.*\]\?} { send -- "s\n" }
-        -re {Stage this hunk.*\?} { send -- "n\n" }
-    }
+expect {
+    -re {Stage this hunk \[.*s.*\]\?} { send -- "s\n";  exp_continue }
+    -re {Stage this hunk \[.*\]\?} { send -- "n\n"; exp_continue }
+    eof
 }
 
