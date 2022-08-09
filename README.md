@@ -1,3 +1,5 @@
+![versions](assets/pybadges.svg)
+
 # silent-committer
 
 Commits changes as original authors
