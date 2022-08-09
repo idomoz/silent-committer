@@ -12,7 +12,7 @@ pip install silent_committer
 
 ```sh
 cd <project_root>
-silently-commit <commit_msg>
+silently-commit "<commit_msg>"
 ```
 
 ## How does this work?
