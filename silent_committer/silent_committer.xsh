@@ -238,11 +238,16 @@ def commit_hunks_per_author(hunks_by_file):
 def main():
     print(ASCII_ART)
 
-    if not len(sys.argv) > 1:
-        print('Usage: xonsh silent_committer.xsh <commit_msg>')
+    if not (len(sys.argv) > 1 and sys.argv[1]):
+        print('Usage: silently-commit <commit_msg>')
         exit(1)
-    
-    if 'nothing to commit, working tree clean' in $(git status):
+
+    git_status = !(git status)
+    git_status.end()
+    if git_status.errors and 'fatal: not a git repository' in git_status.errors:
+        print('Current dir is not a git repository...')
+        exit(0)
+    elif 'nothing to commit, working tree clean' in git_status.output:
         print('Working tree is clean. There are no changes to commit...')
         exit(0)
 

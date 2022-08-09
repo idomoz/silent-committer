@@ -2,29 +2,22 @@
 
 Commits changes as original authors
 
-## Prerequisites
-
-- [Python 3.6+](https://www.python.org/)
-- [xonsh](https://xon.sh/)
-
 ## Installation
 
 ```sh
-git clone git@github.com:idomoz/silent-committer.git
-cd silent-committer
-pip install -r requirements.txt
+pip install silent_committer
 ```
 
 ## Usage
 
 ```sh
 cd <project_root>
-xonsh silent_committer.xsh <commit_msg>
+silently-commit <commit_msg>
 ```
 
 ## How does this work?
 
-Silent commiter does the following steps:
+Silent committer does the following steps:
 
 1. Unstages all changes.
 2. Runs `git add -p` and splits all hunks that are splittable.
@@ -42,5 +35,5 @@ for each author with the author being the original author while the committer st
 
 ## Disclaimer
 
-In order to prevent code loss, its best to first commit your changes and the run `git reset --soft HEAD^` so that you could return to your changes
+In order to prevent code loss, it's best to first commit your changes and the run `git reset --soft HEAD^` so that you could return to your changes
 using `git reflog` or alternitively stash your changes and run `git stash apply` to keep your changes in the stash if something goes wrong.

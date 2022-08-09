@@ -1,0 +1,2 @@
+#!/bin/sh
+exec xonsh $(python -c 'import site; print(site.getsitepackages()[0])')/silent_committer/silent_committer.xsh "$1"
