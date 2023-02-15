@@ -103,11 +103,11 @@ def parse_hunks():
         start_line, hunk_size = map(lambda x: int(x) if x is not None else 1, HUNK_INFO_REGEX.match(hunk_info).groups()[:2])
 
         # Filter out lines that were added   
-        hunk_lines = (line for line in hunk_diff.splitlines() if not line.startswith('+'))
+        hunk_lines = (line for line in hunk_diff.splitlines() if not line.replace('\x1b[32m', '').startswith('+'))
         hunk_data = dict(
             start_line=start_line,
             hunk_size=hunk_size,
-            modified_lines=[(i + start_line) for i, line in enumerate(hunk_lines) if line.startswith('-')]
+            modified_lines=[(i + start_line) for i, line in enumerate(hunk_lines) if line.replace('\x1b[31m', '').startswith('-')]
         )
 
         hunks_by_file[file_path].append(hunk_data)
